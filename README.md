@@ -19,6 +19,8 @@ A **service mesh** is an infrastructure layer that manages **service-to-service 
 
 # 2) What is **Istio**?
 
+![Alt Text](assets/istio.png)
+
 **Istio** is a popular, production-grade **service mesh** for Kubernetes (and beyond) that:
 
 * Uses **Envoy** as its data plane proxy.
@@ -72,6 +74,8 @@ Trade-offs:
 ---
 
 # 5) **Istio Architecture**
+
+![Alt Text](assets/istio.svg)
 
 **Planes**
 
