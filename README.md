@@ -408,11 +408,7 @@ spec:
 
 ---
 
-
-
-
-
-### Istio Lab: Traffic Management and Observability
+# Istio Lab: Traffic Management and Observability
 
 This lab will guide you through deploying a sample application in a Kubernetes cluster with Istio. You'll use Istio's core features to manage traffic and gain observability without changing any application code.
 
