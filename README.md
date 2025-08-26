@@ -1,4 +1,5 @@
 # 1) What is a **Service Mesh**?
+![Alt Text](assets/svc.png)
 
 A **service mesh** is an infrastructure layer that manages **service-to-service communication** for microservices. Instead of baking networking, security, and observability logic into each service, a mesh provides these features **uniformly and transparently** via **proxies** that sit next to your services.
 
