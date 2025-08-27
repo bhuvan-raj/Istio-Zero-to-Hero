@@ -417,55 +417,89 @@ spec:
 
 This lab will guide you through deploying a sample application in a Kubernetes cluster with Istio. You'll use Istio's core features to manage traffic and gain observability without changing any application code.
 
------
+***
 
 ### Prerequisites
 
-  * A Kubernetes cluster (e.g., Minikube or Kind).
-  * **Istio** installed on your cluster. You can install it using the Istio CLI.
-  * `kubectl` and `istioctl` CLIs installed on your machine.
-  * Basic knowledge of Kubernetes Deployments and Services.
+* A Kubernetes cluster (e.g., Minikube or Kind).
+* `kubectl` and `istioctl` CLIs installed on your machine.
+* Basic knowledge of Kubernetes Deployments and Services.
 
------
+***
 
-### Part 1: Deploy a Sample Application
+### Part 1: Install Istio on Your Cluster 🚀
 
-First, you'll deploy the sample **Bookinfo** application, which consists of four microservices:
+First, you'll install the Istio command-line tool (`istioctl`) and then use it to install the service mesh onto your Kubernetes cluster.
 
-  * **`productpage`**: The main page.
-  * **`details`**: Provides book information.
-  * **`reviews`**: Provides book reviews.
-  * **`ratings`**: Provides star ratings (called by the `reviews` service).
+1.  **Install `istioctl` CLI:**
+    This command downloads the latest Istio release and places the `istioctl` binary in your local path.
 
-<!-- end list -->
+    **On Linux or macOS:**
+    ```bash
+    curl -L [https://istio.io/downloadIstio](https://istio.io/downloadIstio) | sh -
+    cd istio-*
+    sudo mv bin/istioctl /usr/local/bin/
+    ```
+
+    **On Windows (using PowerShell):**
+    ```powershell
+    # Create a folder to hold Istio files
+    mkdir istio-temp
+    cd istio-temp
+
+    # Download and extract the latest Istio release
+    Invoke-WebRequest -Uri "[https://istio.io/downloadIstio](https://istio.io/downloadIstio)" -OutFile "istio-download.zip"
+    Expand-Archive -Path "istio-download.zip" -DestinationPath .
+    $istioDir = Get-ChildItem -Path . -Directory -Filter "istio-*" | Select-Object -First 1
+
+    # Add istioctl to your path
+    $env:PATH += ";$PWD\$istioDir\bin"
+    [Environment]::SetEnvironmentVariable("PATH", $env:PATH, "User")
+    ```
+
+2.  **Install Istio to the Cluster:**
+    Now, use the `istioctl` command to install Istio onto your Kubernetes cluster. The `demo` profile is perfect for labs as it installs all the necessary components, including Kiali.
+
+    ```bash
+    istioctl install --set profile=demo -y
+    ```
+
+3.  **Verify the Installation:**
+    Check that all Istio pods are running in the `istio-system` namespace. You should see pods for `istiod`, `istio-ingressgateway`, and `kiali-server` in the `Running` state.
+
+    ```bash
+    kubectl get pods -n istio-system
+    ```
+
+***
+
+### Part 2: Deploy a Sample Application 📦
+
+Now that Istio is installed, you'll deploy a sample application and let Istio manage its traffic.
 
 1.  **Add the `istio-injection` Label:**
-    You need to label the namespace where you will deploy the application. This tells Istio to automatically inject an Envoy sidecar proxy into every pod created in this namespace.
+    You must label the namespace where you will deploy the application. This tells Istio to automatically inject an **Envoy sidecar proxy** into every pod in this namespace.
 
     ```bash
     kubectl label namespace default istio-injection=enabled
     ```
 
-    This is the key to Istio's transparent functionality.
-
 2.  **Deploy the Application:**
-    Istio provides a sample application manifest for this lab.
+    Deploy the sample **Bookinfo** application. Wait for all the pods to start. You'll notice each pod has two containers (1/1 ready): your application and the Envoy sidecar.
 
     ```bash
-    kubectl apply -f https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/platform/kube/bookinfo.yaml
+    kubectl apply -f [https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/platform/kube/bookinfo.yaml](https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/platform/kube/bookinfo.yaml)
     ```
 
-    Wait a moment for all the pods to start. You can check their status with `kubectl get pods`. You'll notice each pod has **two containers** (1/1 ready): your application and the Envoy sidecar.
-
-3.  **Create a Gateway:**
+3.  **Create an Istio Gateway:**
     The application is deployed, but it's not yet accessible from outside the cluster. You need to create an Istio Gateway to manage inbound traffic.
 
     ```bash
-    kubectl apply -f https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/networking/bookinfo-gateway.yaml
+    kubectl apply -f [https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/networking/bookinfo-gateway.yaml](https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/networking/bookinfo-gateway.yaml)
     ```
 
 4.  **Access the Application:**
-    Now, get the external IP and port to access the application.
+    Now, get the external URL to access the application.
 
     ```bash
     # For Minikube/Kind
@@ -475,74 +509,67 @@ First, you'll deploy the sample **Bookinfo** application, which consists of four
     fi
     echo "Access your app at: http://$GATEWAY_URL/productpage"
     ```
+    Open the URL in your browser and refresh it several times. You'll see the `reviews` section randomly switch between three different versions.
 
-    Open the URL in your browser and refresh it several times. You'll see that the `reviews` section randomly switches between three versions: one with no stars, one with black stars, and one with red stars. This is because all three versions of the `reviews` service are being load-balanced equally by Istio's default routing.
+***
 
------
+### Part 3: Traffic Management (Canary Release) 🚦
 
-### Part 2: Traffic Management (Canary Release)
-
-Now, you'll use Istio to control the traffic and route all traffic to a specific version of the `reviews` service, simulating a canary release.
+You will now use Istio to control the traffic and simulate a canary release.
 
 1.  **Define Routing Rules:**
-    First, you'll create a `DestinationRule` to define the available versions (subsets) of the `reviews` service.
+    First, you'll create a `DestinationRule` to define the available versions (`v1`, `v2`, and `v3`) of the `reviews` service.
 
     ```bash
-    kubectl apply -f https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/networking/destination-rule-all.yaml
+    kubectl apply -f [https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/networking/destination-rule-all.yaml](https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/networking/destination-rule-all.yaml)
     ```
-
-    This command defines subsets `v1`, `v2`, and `v3` for the `reviews` service.
 
 2.  **Route All Traffic to a Single Version:**
-    Now, create a `VirtualService` to route all traffic for the `reviews` service to `v1`.
+    Create a `VirtualService` to route all traffic for the `reviews` service to `v1`.
 
     ```bash
-    kubectl apply -f https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/networking/virtual-service-all-v1.yaml
+    kubectl apply -f [https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/networking/virtual-service-all-v1.yaml](https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/networking/virtual-service-all-v1.yaml)
     ```
-
-    Refresh your browser page several times. The `reviews` section will now consistently show the `v1` version (no stars).
+    Refresh your browser. The `reviews` section will now consistently show the `v1` version (no stars).
 
 3.  **Simulate a Canary Release:**
-    Now, let's route **50% of the traffic** to `v3` and the other 50% to `v1`.
+    Now, route 50% of the traffic to `v3` and the other 50% to `v1`.
 
     ```bash
-    kubectl apply -f https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/networking/virtual-service-reviews-50-v3.yaml
+    kubectl apply -f [https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/networking/virtual-service-reviews-50-v3.yaml](https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/networking/virtual-service-reviews-50-v3.yaml)
     ```
+    Refresh your browser. The `reviews` section will now switch between `v1` and `v3` about half the time.
 
-    Refresh your browser. The `reviews` section will now switch between `v1` (no stars) and `v3` (red stars) about half the time. This demonstrates a canary release, where a new version (`v3`) is gradually rolled out to a small portion of users.
+***
 
------
+### Part 4: Observability (Kiali) 📊
 
-### Part 3: Observability (Kiali and Prometheus)
-
-Istio provides rich observability through its integration with Prometheus and Grafana, and especially the **Kiali** dashboard.
+Istio provides rich observability through the **Kiali** dashboard, which is included in the `demo` profile.
 
 1.  **Access the Kiali Dashboard:**
-    Kiali provides a graph visualization of your service mesh. Port-forward to the Kiali service to access its dashboard.
+    Port-forward to the Kiali service to access its dashboard.
 
     ```bash
     kubectl -n istio-system port-forward svc/kiali 20001:20001
     ```
-
     Open your browser and navigate to `http://localhost:20001`. Log in with `admin`/`admin`.
 
 2.  **Explore the Service Graph:**
+    * Navigate to the **Graph** section in the left-hand menu.
+    * In the **Namespace** dropdown, select `default`.
+    * You'll see a real-time graph of your Bookinfo application, showing the traffic flow and the 50/50 split to the `reviews` service versions.
 
-      * Navigate to the **Graph** section in the left-hand menu.
-      * In the **Namespace** dropdown, select `default`.
-      * You'll see a graph of your Bookinfo application's services. As you refresh the `productpage` in your other browser window, you'll see a visual representation of the traffic flow and the 50/50 split to the `reviews` service versions.
-      * The graph also shows the health of each service, including request rates, latency, and error codes.
-
------
+***
 
 ### Conclusion and Clean Up
 
-This lab demonstrates how Istio can manage traffic flow and provide deep observability without any changes to the application itself.
+This lab demonstrates how Istio can manage traffic and provide deep observability without any changes to the application itself.
 
-  * To clean up the application and Istio resources:
+* **To clean up the application and Istio resources:**
     ```bash
-    kubectl delete -f https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/networking/virtual-service-all-v1.yaml
-    kubectl delete -f https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/platform/kube/bookinfo.yaml
-    kubectl delete -f https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/networking/bookinfo-gateway.yaml
+    kubectl delete -f [https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/networking/virtual-service-reviews-50-v3.yaml](https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/networking/virtual-service-reviews-50-v3.yaml)
+    kubectl delete -f [https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/networking/destination-rule-all.yaml](https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/networking/destination-rule-all.yaml)
+    kubectl delete -f [https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/platform/kube/bookinfo.yaml](https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/platform/kube/bookinfo.yaml)
+    kubectl delete -f [https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/networking/bookinfo-gateway.yaml](https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/networking/bookinfo-gateway.yaml)
     kubectl label namespace default istio-injection-
     ```
