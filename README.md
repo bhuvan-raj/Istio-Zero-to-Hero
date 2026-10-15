@@ -12,8 +12,6 @@ Learn Istio from scratch and progress to traffic management, zero-trust security
 [![Kubernetes][badge-k8s]][k8s]
 [![Envoy][badge-envoy]][envoy]
 [![AWS EKS][badge-eks]][eks]
-[![Terraform][badge-tf]][terraform]
-[![Helm][badge-helm]][helm]
 
 [![License: MIT][badge-license]](./LICENSE)
 [![PRs Welcome][badge-prs]](#-contributing)
